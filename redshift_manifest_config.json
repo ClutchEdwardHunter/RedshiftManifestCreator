@@ -1,0 +1,21 @@
+{
+	"manifest_config": {
+		"aws_info": {
+			"credentials":{
+				"credentials_option": "keysec-or-arn",
+				"arn":"arn_credential_role",
+				"key":"key",
+				"secret":"secret"
+			},
+			"bucket_info":{
+				"target_bucket_name": "aws-bucket",
+				"target_bucket_region": "aws-bucket-region",
+				"folder_file_mask":"folder_and_filename_mask_to_use",
+				"file_extension":"file_extenstion_to_target"
+			}
+		},
+		"manifest_name":"name_of_manifest",
+		"mandatory_flag":true
+		
+	}
+}
