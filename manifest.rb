@@ -11,6 +11,7 @@ config_hash = JSON.parse(config_file)
 @config = config_hash["manifest_config"]
 
 
+
 #assign statics
 RW_AKEY =  @config["aws_info"]["credentials"]["key"] 
 RW_ASEC =  @config["aws_info"]["credentials"]["secret"]
@@ -21,6 +22,8 @@ MANIFST =  @config["manifest_name"]
 VERBOSE =  @config["verbose_mode"]
 UPLOADM =  @config["upload_manifest"]
 WMANFST =  @config["write_manifest"]
+DIFFOUT = @config["differential"]["active"]
+DIFFMNT = DIFFOUT ? @config["differential"]["input_manifest"] : false
 
 if VERBOSE 
 	puts "RW_AKEY: #{RW_AKEY}\n"
@@ -30,6 +33,7 @@ if VERBOSE
 	puts "FOLDER: #{FLDMASK}\n"
 	puts "MANIFEST_NAME: #{MANIFST}\n"
 	puts "UPLOADM: #{UPLOADM}"
+	PUTS "WRITEMANIFEST: #{WMANFST}"
 end
 
 #configure aws
@@ -39,41 +43,31 @@ Aws.config.update({
 })
 
 
-#setup manifest hash / files array
-@manifest = {:entries=>[]}
-@files = []
 
-def manifest_entry(file, mandatory)
-	bucket = TBUCKET
-	root_folder = FLDMASK
-    base_url = "s3://#{TBUCKET}"
-    #puts "Using base url: #{base_url}"
-    output_f = "s3://#{TBUCKET}/#{file}"
-	@manifest[:entries].push({:url=>output_f,:mandatory=>true})
-	puts "Added to manifest_hash: #{{:url=>output_f,:mandatory=>true}}" if VERBOSE
-end
 
-def get_file_keys
+def create_manifest(mandatory)
 	s3 = Aws::S3::Resource.new
-	file_array = []
+	manifest_entries = {:entries=>[]}
 	puts "Targeting bucket (from config): #{TBUCKET}" if VERBOSE
 	bucket=s3.bucket(TBUCKET)
 	puts "Parsing bucket for items matching #{FLDMASK}" if VERBOSE
 	bucket.objects.each do |obj|
 		if obj.key.to_s.include? FLDMASK.to_s
 		  puts "Targeting: #{obj.key}" if VERBOSE
-  		  manifest_entry(obj.key,"true")
-  		  
-  		  #@files.push(obj.key)
+		  output_f = "s3://#{TBUCKET}/#{obj.key}"
+		  manifest_entries[:entries].push({:url=>output_f,:mandatory=>mandatory})
+		  puts "Added to manifest_hash: #{{:url=>output_f,:mandatory=>mandatory}}" if VERBOSE
   	    end
     end
+    manifest_entries
    
 end
 
-def write_manifest_file
+def write_manifest_file(manifest_entries)
 	puts 'Outputting file to local system...' if VERBOSE
-	File.write("#{LOCAL_PATH}/#{MANIFST}.manifest",JSON.pretty_generate(@manifest))
+	File.write("#{LOCAL_PATH}/#{MANIFST}.manifest",JSON.pretty_generate(manifest_entries))
 end
+
 def upload_manifest
 	puts "Uploading manifest: #{MANIFST} to S3..." if VERBOSE
 	s3 = Aws::S3::Resource.new
@@ -108,20 +102,20 @@ def differential_manifest(json_path_file) #take an input manifest and generate a
 end
 
 
-def generate_copy_statement
-#TODO: generate copy sql
+
+
+@current_manifest_hash = create_manifest
+
+if WMANFST 
+	write_manifest_file(JSON.pretty_generate(@current_manifest_hash)) 
+else
+	puts "Manifest created, but not written to disk.\nResults display:"
+	puts @current_manifest_hash.inspect
 end
 
 
-get_file_keys
-write_manifest_file if WMANFST
 
-=begin
-if ARGV
-	cmd, *arg = ARGV
-	if cmd == '--d' && arg
-		differntial_manifest(arg)
-=end
+
 
 
 
